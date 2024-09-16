@@ -2,7 +2,12 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-products = [{"id": 1, "name": "Achille", "price": 22},{"id": 2, "name": "Matt", "price": 2}]
+products = [
+    {"id": 1, "name": "Achilleproduct", "price": 200},
+    {"id": 2, "name": "Mattproduct", "price": 700},
+    {"id": 3, "name": "Carloproduct", "price": 500},
+    {"id": 4, "name": "Julzproduct", "price": 1500},
+]
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
 def product_view(request, productId=None):
@@ -44,8 +49,8 @@ def product_view(request, productId=None):
         product = next((p for p in products if p["id"] == productId), None)
         if product is None:
             return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
-        productName=product["name"]
+        productName = product["name"]
         products.remove(product)
-        return Response({"message": f"Product {productName} successfully deleted."},status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": f"Product {productName} successfully deleted."}, status=status.HTTP_204_NO_CONTENT)
 
     return Response({"error": "Method not allowed."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
