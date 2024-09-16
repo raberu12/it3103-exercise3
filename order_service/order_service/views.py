@@ -3,13 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status
 import requests
 
-# Initialize the global ORDERS variable here
-ORDERS = []
+ORDERS = []  # List to store orders
 
 CUSTOMER_SERVICE_URL = "http://localhost:3001/customers/"
 PRODUCT_SERVICE_URL = "http://localhost:3002/products/"
 
-# Helper functions to verify customer and product
+# Helper functions
 def verify_customer(customer_id):
     response = requests.get(f"{CUSTOMER_SERVICE_URL}{customer_id}/")
     return response.status_code == 200
@@ -20,8 +19,20 @@ def verify_product(product_id):
 
 @api_view(['POST', 'GET', 'PUT', 'DELETE'])
 def order_handler(request, order_id=None):
-    global ORDERS 
+    global ORDERS
 
+    # GET request to list all orders (for root URL or /orders)
+    if request.method == 'GET':
+        if order_id is None:
+            return Response(ORDERS)  # Return the list of all orders
+        else:
+            # Return specific order details by ID
+            order = next((order for order in ORDERS if order['id'] == order_id), None)
+            if not order:
+                return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(order)
+
+    # POST /orders: Create a new order
     if request.method == 'POST':
         customer_id = request.data.get('customer_id')
         product_id = request.data.get('product_id')
@@ -46,16 +57,8 @@ def order_handler(request, order_id=None):
         ORDERS.append(new_order)
         return Response(new_order, status=status.HTTP_201_CREATED)
 
-    elif request.method == 'GET':
-        if order_id is not None:
-            order = next((order for order in ORDERS if order['id'] == order_id), None)
-            if not order:
-                return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
-            return Response(order)
-
-        return Response(ORDERS)
-
-    elif request.method == 'PUT' and order_id is not None:
+    # PUT /orders/:orderId: Update an order
+    if request.method == 'PUT' and order_id is not None:
         order = next((order for order in ORDERS if order['id'] == order_id), None)
         if not order:
             return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -78,7 +81,8 @@ def order_handler(request, order_id=None):
 
         return Response(order)
 
-    elif request.method == 'DELETE' and order_id is not None:
+    # DELETE /orders/:orderId: Delete an order
+    if request.method == 'DELETE' and order_id is not None:
         order = next((order for order in ORDERS if order['id'] == order_id), None)
         if not order:
             return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
