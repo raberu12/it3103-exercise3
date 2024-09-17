@@ -33,6 +33,7 @@ def order_handler(request, order_id=None):
     def enrich_order(order):
         customer_details = get_customer_details(order['customer_id'])
         product_details = get_product_details(order['product_id'])
+        total_price = product_details['price'] * order['quantity'] if product_details else 0
         
         return {
             "id": order["id"],
@@ -40,7 +41,9 @@ def order_handler(request, order_id=None):
             "customer_name": customer_details['username'] if customer_details else "Unknown",
             "product_id": order["product_id"],
             "product_name": product_details['name'] if product_details else "Unknown",
-            "quantity": order["quantity"]
+            "quantity": order["quantity"],
+            "price_per_unit": product_details['price'] if product_details else 0,
+            "total_price": total_price
         }
 
     if request.method == 'GET':
@@ -65,7 +68,8 @@ def order_handler(request, order_id=None):
             if not get_customer_details(customer_id):
                 return Response({"error": "Customer does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
-            if not get_product_details(product_id):
+            product_details = get_product_details(product_id)
+            if not product_details:
                 return Response({"error": "Product does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
             order_id = len(ORDERS) + 1
