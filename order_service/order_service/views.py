@@ -14,7 +14,7 @@ def get_customer_details(customer_id):
         if response.status_code == 200:
             return response.json()
         return None
-    except requests.RequestException as e:
+    except requests.RequestException:
         return None
 
 def get_product_details(product_id):
@@ -23,7 +23,7 @@ def get_product_details(product_id):
         if response.status_code == 200:
             return response.json()
         return None
-    except requests.RequestException as e:
+    except requests.RequestException:
         return None
 
 @api_view(['POST', 'GET', 'PUT', 'DELETE'])
