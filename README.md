@@ -27,6 +27,14 @@
 ```pip install django```
 - **Django Rest Framework**:
 ```pip install djangorestframework```
+- **Requests**
+```pip install requests```
+- **Django Cors Headers**
+```pip install django-cors-headers ```
+- **Django Rest Framework Simple JWT**
+```pip install djangorestframework-simplejwt``
+- **Django SSLify**
+```pip install django-sslify```
 ## RUNNING THE SERVICES
 1. Navigate to the correct directories; for example:
 ```
