@@ -23,8 +23,8 @@
     - *DELETE* `/orders/:orderId`: Delete an order.
 ## TECHNOLOGIES USED AND INSTALLATION
 - [Python](https://www.python.org/downloads/)
-- **Django**:
-- **Django Rest Framework**:
+- **Django**
+- **Django Rest Framework**
 - **Requests**
 - **Django Cors Headers**
 - **Django Rest Framework Simple JWT**
