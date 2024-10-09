@@ -3,14 +3,14 @@ from rest_framework.response import Response
 from rest_framework import status
 import requests
 
-ORDERS = [] 
+ORDERS = []
 
-CUSTOMER_SERVICE_URL = "http://localhost:3002/customers/"
+USER_SERVICE_URL = "http://localhost:3002/users/"
 PRODUCT_SERVICE_URL = "http://localhost:3001/products/"
 
-def get_customer_details(customer_id):
+def get_user_details(user_id):
     try:
-        response = requests.get(f"{CUSTOMER_SERVICE_URL}{customer_id}/")
+        response = requests.get(f"{USER_SERVICE_URL}{user_id}/")
         if response.status_code == 200:
             return response.json()
         return None
@@ -31,14 +31,14 @@ def order_handler(request, order_id=None):
     global ORDERS
 
     def enrich_order(order):
-        customer_details = get_customer_details(order['customer_id'])
+        user_details = get_user_details(order['user_id'])
         product_details = get_product_details(order['product_id'])
         total_price = product_details['price'] * order['quantity'] if product_details else 0
-        
+
         return {
             "id": order["id"],
-            "customer_id": order["customer_id"],
-            "customer_name": customer_details['username'] if customer_details else "Unknown",
+            "user_id": order["user_id"],
+            "user_name": user_details['username'] if user_details else "Unknown",
             "product_id": order["product_id"],
             "product_name": product_details['name'] if product_details else "Unknown",
             "quantity": order["quantity"],
@@ -58,15 +58,15 @@ def order_handler(request, order_id=None):
 
     if request.method == 'POST':
         try:
-            customer_id = request.data.get('customer_id')
+            user_id = request.data.get('user_id')
             product_id = request.data.get('product_id')
             quantity = request.data.get('quantity', 1)
 
-            if not customer_id or not product_id:
-                return Response({"error": "Customer ID and Product ID are required"}, status=status.HTTP_400_BAD_REQUEST)
+            if not user_id or not product_id:
+                return Response({"error": "user ID and Product ID are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            if not get_customer_details(customer_id):
-                return Response({"error": "Customer does not exist"}, status=status.HTTP_404_NOT_FOUND)
+            if not get_user_details(user_id):
+                return Response({"error": "user does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
             product_details = get_product_details(product_id)
             if not product_details:
@@ -75,7 +75,7 @@ def order_handler(request, order_id=None):
             order_id = len(ORDERS) + 1
             new_order = {
                 "id": order_id,
-                "customer_id": customer_id,
+                "user_id": user_id,
                 "product_id": product_id,
                 "quantity": quantity
             }
@@ -90,18 +90,18 @@ def order_handler(request, order_id=None):
             if not order:
                 return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            customer_id = request.data.get('customer_id', order['customer_id'])
+            user_id = request.data.get('user_id', order['user_id'])
             product_id = request.data.get('product_id', order['product_id'])
             quantity = request.data.get('quantity', order['quantity'])
 
-            if not get_customer_details(customer_id):
-                return Response({"error": "Customer does not exist"}, status=status.HTTP_404_NOT_FOUND)
+            if not get_user_details(user_id):
+                return Response({"error": "user does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
             if not get_product_details(product_id):
                 return Response({"error": "Product does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
             order.update({
-                "customer_id": customer_id,
+                "user_id": user_id,
                 "product_id": product_id,
                 "quantity": quantity
             })

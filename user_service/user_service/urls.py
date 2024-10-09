@@ -1,6 +1,6 @@
 <<<<<<< HEAD
 """
-URL configuration for customer_service project.
+URL configuration for user_service project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.1/topics/http/urls/
@@ -25,8 +25,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path("", views.customer_view, name="customer-list-view"),
-    path("customers/", views.customer_view, name="customer-list-create"),
-    path("customers/<int:customerId>/", views.customer_view, name="customer-detail-update-delete"),
+    path("", views.user_view, name="user-list-view"),
+    path("users/", views.user_view, name="user-list-create"),
+    path("users/<int:userId>/", views.user_view, name="user-detail-update-delete"),
 >>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
 ]
