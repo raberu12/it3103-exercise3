@@ -16,6 +16,7 @@ from jwt.exceptions import PyJWTError
 import requests
 
 
+
 def token_required(f):
     @wraps(f)
     def decorated(self, request, *args, **kwargs):
@@ -53,24 +54,35 @@ def role_required(allowed_roles):
 
     return decorator
 
+
 def throttle(limit=5, period=60):
+<<<<<<< HEAD
+=======
+    """
+    Throttle decorator to limit the number of requests.
+    :param limit: Maximum number of requests allowed.
+    :param period: Time period in seconds.
+    """
+
+>>>>>>> b4b365878a7c65820b6a901d719d26ac9147d0ac
     def decorator(func):
         @wraps(func)
         def _wrapped_view(self, request, *args, **kwargs):
-            user_id = request.user.get('id')  # Assuming 'id' is part of the JWT payload
-            key = f'throttle_{user_id}'
+            user_id = request.user.get("id")
+            key = f"throttle_{user_id}"
             requests_made = cache.get(key, 0)
 
             if requests_made >= limit:
-                return JsonResponse({'error': 'Too many requests'}, status=429)
+                return JsonResponse({"error": "Too many requests"}, status=429)
 
-            # Increment the count and set timeout
             cache.set(key, requests_made + 1, timeout=period)
             return func(self, request, *args, **kwargs)
 
         return _wrapped_view
+
     return decorator
 
+<<<<<<< HEAD
 @method_decorator(csrf_exempt, name='dispatch')
 class RegisterView(View):
     def post(self, request):
@@ -117,14 +129,17 @@ class LoginView(View):
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
+=======
+>>>>>>> b4b365878a7c65820b6a901d719d26ac9147d0ac
 
 class ForwardView(View):
     @token_required
-    @role_required(['admin'])
+    @role_required(["admin"])
     def post(self, request, service):
         return self._forward_request(request, service, "post")
+
     @token_required
-    @role_required(['user', 'admin'])
+    @role_required(["user", "admin"])
     @throttle(limit=5, period=60)
     def get(self, request, service):
         return self._forward_request(request, service, "get")
@@ -138,7 +153,9 @@ class ForwardView(View):
         headers = {"Authorization": request.headers.get("Authorization")}
         try:
             if method == "post":
-                response = requests.post(url, json=json.loads(request.body), headers=headers)
+                response = requests.post(
+                    url, json=json.loads(request.body), headers=headers
+                )
             else:
                 response = requests.get(url, headers=headers)
             response.raise_for_status()
