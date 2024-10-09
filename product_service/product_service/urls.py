@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 URL configuration for product_service project.
 
@@ -19,4 +20,13 @@ from django.urls import path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+=======
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("", views.product_view, name="product-view-list"),
+    path("products/", views.product_view, name="product-list-create"),
+    path("products/<int:productId>/", views.product_view, name="product-detail-update-delete"),
+>>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
 ]

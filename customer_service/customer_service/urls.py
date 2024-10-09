@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 URL configuration for customer_service project.
 
@@ -19,4 +20,13 @@ from django.urls import path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+=======
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("", views.customer_view, name="customer-list-view"),
+    path("customers/", views.customer_view, name="customer-list-create"),
+    path("customers/<int:customerId>/", views.customer_view, name="customer-detail-update-delete"),
+>>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
 ]
