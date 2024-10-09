@@ -23,10 +23,20 @@
     - *DELETE* `/orders/:orderId`: Delete an order.
 ## TECHNOLOGIES USED AND INSTALLATION
 - [Python](https://www.python.org/downloads/)
-- **Django**:
-```pip install django```
-- **Django Rest Framework**:
-```pip install djangorestframework```
+- **Django**
+- **Django Rest Framework**
+- **Requests**
+- **Django Cors Headers**
+- **Django Rest Framework Simple JWT**
+- **Django SSLify**
+```
+pip install django
+pip install djangorestframework
+pip install requests
+pip install django-cors-headers
+pip install djangorestframework-simplejwt
+pip install django-sslify
+```
 ## RUNNING THE SERVICES
 1. Navigate to the correct directories; for example:
 ```
