@@ -56,15 +56,6 @@ def role_required(allowed_roles):
 
 
 def throttle(limit=5, period=60):
-<<<<<<< HEAD
-=======
-    """
-    Throttle decorator to limit the number of requests.
-    :param limit: Maximum number of requests allowed.
-    :param period: Time period in seconds.
-    """
-
->>>>>>> b4b365878a7c65820b6a901d719d26ac9147d0ac
     def decorator(func):
         @wraps(func)
         def _wrapped_view(self, request, *args, **kwargs):
@@ -82,7 +73,6 @@ def throttle(limit=5, period=60):
 
     return decorator
 
-<<<<<<< HEAD
 @method_decorator(csrf_exempt, name='dispatch')
 class RegisterView(View):
     def post(self, request):
@@ -129,8 +119,6 @@ class LoginView(View):
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
-=======
->>>>>>> b4b365878a7c65820b6a901d719d26ac9147d0ac
 
 class ForwardView(View):
     @token_required
