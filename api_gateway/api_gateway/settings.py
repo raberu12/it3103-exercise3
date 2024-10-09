@@ -27,6 +27,8 @@ SERVICE_URLS = {
     "product": "http://localhost:3001/products/",
 }
 
+SECURE_SSL_REDIRECT = True
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -45,6 +47,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "corsheaders",
+    "sslify",
 ]
 
 MIDDLEWARE = [
@@ -56,6 +59,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "sslify.middleware.SSLifyMiddleware",
 ]
 
 ROOT_URLCONF = "api_gateway.urls"
@@ -79,11 +83,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "api_gateway.wsgi.application"
 
 CACHES = {
-    'default': {},
-    'cache-for-ratelimiting': {},
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    },
+    "cache-for-ratelimiting": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    },
 }
 
-RATELIMIT_USE_CACHE = 'cache-for-ratelimiting'
+RATELIMIT_USE_CACHE = "cache-for-ratelimiting"
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
