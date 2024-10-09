@@ -1,12 +1,20 @@
-import requests
+import json
+from datetime import datetime, timedelta
+
+import jwt
+from django.conf import settings
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.http import JsonResponse
+from django.utils.decorators import method_decorator
 from django.views import View
-from django.conf import settings
-import jwt
+from django.views.decorators.csrf import csrf_exempt
 from functools import wraps
 from jwt.exceptions import PyJWTError
-import json
+
+import requests
+
 
 def token_required(f):
     @wraps(f)
@@ -46,11 +54,6 @@ def role_required(allowed_roles):
     return decorator
 
 def throttle(limit=5, period=60):
-    """
-    Throttle decorator to limit the number of requests.
-    :param limit: Maximum number of requests allowed.
-    :param period: Time period in seconds.
-    """
     def decorator(func):
         @wraps(func)
         def _wrapped_view(self, request, *args, **kwargs):
@@ -67,6 +70,53 @@ def throttle(limit=5, period=60):
 
         return _wrapped_view
     return decorator
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RegisterView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            username = data.get("username")
+            password = data.get("password")
+            role = data.get("role", "user")  # Default role is 'user'
+
+            if User.objects.filter(username=username).exists():
+                return JsonResponse({"error": "Username already exists"}, status=400)
+
+            user = User.objects.create_user(username=username, password=password)
+            user.profile.role = role  # Assuming you have a profile model with a role field
+            user.profile.save()  # Save the user's profile
+
+            return JsonResponse({"message": "User registered successfully"}, status=201)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LoginView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            username = data.get("username")
+            password = data.get("password")
+
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                # Generate JWT token
+                payload = {
+                    'id': user.id,
+                    'username': user.username,
+                    'role': user.profile.role,  # Assuming you have a profile model with a role field
+                    'exp': datetime.utcnow() + timedelta(hours=1)  # Token expiration time
+                }
+                token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+                return JsonResponse({"token": token}, status=200)
+            else:
+                return JsonResponse({"error": "Invalid credentials"}, status=401)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
 class ForwardView(View):
     @token_required
