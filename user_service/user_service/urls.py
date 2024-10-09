@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 URL configuration for user_service project.
 
@@ -17,16 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from . import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-=======
-from django.urls import path
-from . import views
+]
 
 urlpatterns = [
     path("", views.user_view, name="user-list-view"),
     path("users/", views.user_view, name="user-list-create"),
     path("users/<int:userId>/", views.user_view, name="user-detail-update-delete"),
->>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
 ]
