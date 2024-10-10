@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timedelta
-
+from rest_framework.permissions import IsAuthenticated
 import jwt
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -11,46 +11,49 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from functools import wraps
 from jwt.exceptions import PyJWTError
-
+from rest_framework.views import APIView
+from rest_framework.response import Response
 import requests
-
-
 
 def token_required(f):
     @wraps(f)
     def decorated(self, request, *args, **kwargs):
         token = request.headers.get("Authorization")
+        print(f"Received Token: {token}")  # Log received token
+
         if not token:
             return JsonResponse({"error": "Token is missing"}, status=401)
+
         try:
-            data = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-            request.user = data
-        except PyJWTError as e:
-            return JsonResponse({"error": f"Token is invalid: {str(e)}"}, status=401)
+            scheme, _, jwt_token = token.partition(' ')
+            if scheme.lower() != 'bearer':
+                return JsonResponse({"error": "Authorization header must start with Bearer"}, status=401)
+
+            # Decode the JWT
+            data = jwt.decode(jwt_token, settings.SECRET_KEY, algorithms=["HS256"])
+            request.user = data  # Attach user data to request
+            print(f"Decoded User Data: {data}")  # Log decoded user data
+
+        except jwt.ExpiredSignatureError:
+            return JsonResponse({"error": "Token has expired"}, status=401)
+        except jwt.InvalidTokenError:
+            return JsonResponse({"error": "Invalid token"}, status=401)
         except Exception as e:
-            return JsonResponse(
-                {"error": f"An unexpected error occurred: {str(e)}"}, status=500
-            )
+            return JsonResponse({"error": f"An unexpected error occurred: {str(e)}"}, status=500)
+
         return f(self, request, *args, **kwargs)
 
     return decorated
-
 
 def role_required(allowed_roles):
     def decorator(f):
         @wraps(f)
         def decorated(self, request, *args, **kwargs):
-            if not hasattr(request, "user"):
-                return JsonResponse({"error": "User not authenticated"}, status=401)
-
-            user_role = request.user.get("role")
-            if not user_role or user_role not in allowed_roles:
+            user_role = request.user.get("role") if hasattr(request, 'user') else None
+            if user_role not in allowed_roles:
                 return JsonResponse({"error": "Permission denied"}, status=403)
-
             return f(self, request, *args, **kwargs)
-
         return decorated
-
     return decorator
 
 
@@ -135,43 +138,35 @@ class LoginView(View):
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
-class ForwardView(View):
+@method_decorator(csrf_exempt, name='dispatch')
+class ProductView(APIView):
+    permission_classes = [IsAuthenticated]  # Ensure only authenticated users can access
     @token_required
     @role_required(["admin"])
-    def post(self, request, service):
-        return self._forward_request(request, service, "post")
+    def post(self, request):
+        product_data = request.data  # This works with DRF
+        return self._forward_request(request, product_data, settings.SERVICE_URLS['product_create'])
 
     @token_required
-    @role_required(["user", "admin"])
-    @throttle(limit=5, period=60)
-    def get(self, request, service):
-        return self._forward_request(request, service, "get")
+    @role_required(["admin"])
+    def put(self, request, productId):
+        return self._forward_request(request, request.data, f"{settings.SERVICE_URLS['product_update']}/{productId}/")
 
-    def _forward_request(self, request, service, method):
-        service_urls = settings.SERVICE_URLS
-        url = service_urls.get(service)
-        if not url:
-            return JsonResponse({"error": "Service not found"}, status=404)
+    @token_required
+    @role_required(["admin"])
+    def delete(self, request, productId):
+        return self._forward_request(request, request.data, f"{settings.SERVICE_URLS['product_delete']}/{productId}/")
 
+    @token_required
+    @role_required(["admin", "user"])
+    def get(self, request, productId):
+        return self._forward_request(request, request.data, f"{settings.SERVICE_URLS['product_get']}/{productId}/")
+
+    def _forward_request(self, request, product_data, url):
         headers = {"Authorization": request.headers.get("Authorization")}
         try:
-            if method == "post":
-                response = requests.post(
-                    url, json=json.loads(request.body), headers=headers
-                )
-            else:
-                response = requests.get(url, headers=headers)
-            response.raise_for_status()
-            return JsonResponse(response.json(), status=response.status_code)
+            response = requests.post(url, json=product_data, headers=headers)
+            return Response(response.json(), status=response.status_code)
+
         except requests.exceptions.RequestException as e:
-            return JsonResponse(
-                {"error": f"Service request failed: {str(e)}"}, status=500
-            )
-        except ValueError as e:
-            return JsonResponse(
-                {"error": f"Invalid JSON response from service: {str(e)}"}, status=500
-            )
-        except Exception as e:
-            return JsonResponse(
-                {"error": f"An unexpected error occurred: {str(e)}"}, status=500
-            )
+            return Response({"error": f"Service request failed: {str(e)}"}, status=500)

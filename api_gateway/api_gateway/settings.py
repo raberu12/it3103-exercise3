@@ -16,14 +16,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "test-secret"
 SERVICE_URLS = {
-    "user": "http://localhost:3002/user/",
     "login": "http://localhost:3002/login/",
     "register": "http://localhost:3002/register/",
     "order": "http://localhost:3003/orders/",
-    "product": "http://localhost:3001/products/",
+    "product_create": "http://localhost:3001/products",
+    "product_update": "http://localhost:3001/products",
+    "product_delete": "http://localhost:3001/products",
+    "product_get": "http://localhost:3001/products",
 }
 
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['localhost','127.0.0.1']
 
@@ -39,6 +41,17 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "corsheaders",
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
