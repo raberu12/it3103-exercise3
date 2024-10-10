@@ -16,7 +16,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "test-secret"
 SERVICE_URLS = {
-    "customer": "http://localhost:3002/customers/",
+    "user": "http://localhost:3002/user/",
+    "login": "http://localhost:3002/login/",
     "order": "http://localhost:3003/orders/",
     "product": "http://localhost:3001/products/",
 }
@@ -48,6 +49,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "corsheaders.middleware.CorsMiddleware",
 ]
+
+CSRF_TRUSTED_ORIGINS = ['http://localhost:3002']
 
 ROOT_URLCONF = "api_gateway.urls"
 

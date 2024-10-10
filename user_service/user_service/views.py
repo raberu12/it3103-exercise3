@@ -1,13 +1,37 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from django.contrib.auth import authenticate
+from django.http import JsonResponse
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+import json
 
 users = [
     {"id": 1, "username": "Achille", "email": "achille@gmail.com", "password": "achille", "role": "user"},
-    {"id": 2, "username": "Carlo", "email": "carlo@gmail.com", "password": "carloboy", "role": "user"},
+    {"id": 2, "username": "Carlo", "email": "carlo@gmail.com", "password": "carloboy", "role": "admin"},
     {"id": 3, "username": "Julz", "email": "julz@gmail.com", "password": "julzstephen", "role": "admin"},
     {"id": 4, "username": "Matt", "email": "matt@gmail.com", "password": "matt0987654321", "role": "admin"},
 ]
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LoginView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            username = data.get("username")
+            password = data.get("password")
+            for user in users:
+                if user['username'] == username and user['password'] == password:
+                    return JsonResponse({"id": user['id'],
+                                        "username": user['username'],
+                                        "role": user['role']}, status=200)
+            return JsonResponse({"error": "Invalid credentials"}, status=401)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
 def user_view(request, userId=None):

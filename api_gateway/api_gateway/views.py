@@ -103,19 +103,29 @@ class LoginView(View):
             username = data.get("username")
             password = data.get("password")
 
-            user = authenticate(request, username=username, password=password)
-            if user is not None:
-                # Generate JWT token
+            # Forward login request to the user service
+            user_service_url = settings.SERVICE_URLS['login']  # Adjust based on your service name
+            response = requests.post(
+                user_service_url,
+                json={"username": username, "password": password}
+            )
+
+            if response.status_code == 200:
+                # Assuming the user service returns user details including role
+                user_data = response.json()
+
+                # Generate JWT token based on user data received from user service
                 payload = {
-                    'id': user.id,
-                    'username': user.username,
-                    'role': user.profile.role,  # Assuming you have a profile model with a role field
+                    'id': user_data['id'],  # Assuming the ID is returned
+                    'username': user_data['username'],  # Assuming username is returned
+                    'role': user_data['role'],  # Assuming role is returned
                     'exp': datetime.utcnow() + timedelta(hours=1)  # Token expiration time
                 }
                 token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
-                return JsonResponse({"token": token}, status=200)
+
+                return JsonResponse({"token": token}, status=200)  # Return generated token
             else:
-                return JsonResponse({"error": "Invalid credentials"}, status=401)
+                return JsonResponse(response.json(), status=response.status_code)
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
