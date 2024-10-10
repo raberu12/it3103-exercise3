@@ -28,14 +28,14 @@
 - **Requests**
 - **Django Cors Headers**
 - **Django Rest Framework Simple JWT**
-- **Django SSLify**
+- **Django SSL Server**
 ```
 pip install django
 pip install djangorestframework
 pip install requests
 pip install django-cors-headers
 pip install djangorestframework-simplejwt
-pip install django-sslify
+pip install django-sslserver
 ```
 ## RUNNING THE SERVICES
 1. Navigate to the correct directories; for example:
