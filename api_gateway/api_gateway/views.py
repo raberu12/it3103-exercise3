@@ -81,17 +81,30 @@ class RegisterView(View):
             password = data.get("password")
             role = data.get("role", "user")  # Default role is 'user'
 
-            if User.objects.filter(username=username).exists():
-                return JsonResponse({"error": "Username already exists"}, status=400)
+            # Check if the username already exists by calling the user service
+            user_service_url = settings.SERVICE_URLS['register']
+            check_response = requests.get(user_service_url, params={"username": username})
 
-            user = User.objects.create_user(username=username, password=password)
-            user.profile.role = role  # Assuming you have a profile model with a role field
-            user.profile.save()  # Save the user's profile
+            if check_response.status_code == 200:
+                return JsonResponse({"error": "Username already exists."}, status=400)
 
-            return JsonResponse({"message": "User registered successfully"}, status=201)
+            # Forward registration request to the user service
+            registration_response = requests.post(user_service_url, json={
+                "username": username,
+                "password": password,
+                "role": role
+            })
 
+            # Return response from user service
+            return JsonResponse(registration_response.json(), status=registration_response.status_code)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        except requests.exceptions.RequestException as e:
+            return JsonResponse({"error": f"Service request failed: {str(e)}"}, status=500)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
+
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -102,27 +115,20 @@ class LoginView(View):
             username = data.get("username")
             password = data.get("password")
 
-            # Forward login request to the user service
-            user_service_url = settings.SERVICE_URLS['login']  # Adjust based on your service name
-            response = requests.post(
-                user_service_url,
-                json={"username": username, "password": password}
-            )
+            user_service_url = settings.SERVICE_URLS['login']
+            response = requests.post(user_service_url,json={"username": username, "password": password})
 
             if response.status_code == 200:
-                # Assuming the user service returns user details including role
                 user_data = response.json()
-
-                # Generate JWT token based on user data received from user service
                 payload = {
-                    'id': user_data['id'],  # Assuming the ID is returned
-                    'username': user_data['username'],  # Assuming username is returned
-                    'role': user_data['role'],  # Assuming role is returned
-                    'exp': datetime.utcnow() + timedelta(hours=1)  # Token expiration time
+                    'id': user_data['id'],
+                    'username': user_data['username'],
+                    'role': user_data['role'],
+                    'exp': datetime.utcnow() + timedelta(hours=1)
                 }
                 token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
-                return JsonResponse({"token": token}, status=200)  # Return generated token
+                return JsonResponse({"token": token}, status=200)
             else:
                 return JsonResponse(response.json(), status=response.status_code)
 
