@@ -211,3 +211,84 @@ class ProductView(APIView):
         except ValueError:
             print(f"Error: Invalid JSON in response. Raw response: {response.text}")
             return Response({"error": "Invalid JSON in response"}, status=500)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class OrderView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def _check_role(self, request, allowed_roles):
+        print(request.headers.get("Authorization"))
+        token = request.headers.get("Authorization")
+        if not token:
+            print("User is not authenticated")
+            raise AuthenticationFailed("User is not authenticated")
+        payload = decode_access_token(token.split(" ")[1])
+        if payload["role"] not in allowed_roles:
+            print("User is not authorized")
+            raise AuthenticationFailed("User is not authorized")
+
+    def get(self, request, orderId):
+        print(f"GET request for order with ID {orderId}") 
+        self._check_role(request, ["admin"]) 
+        return self._forward_request(
+            method="GET",
+            data=request.data,
+            url=f"{settings.SERVICE_URLS['order_get']}/{orderId}/",
+        )
+
+    def post(self, request):
+        print("POST request to create order")
+        self._check_role(request, ["admin", "user"])
+        return self._forward_request(
+            method="POST", data=request.data, url=settings.SERVICE_URLS["order_create"]
+        )
+
+    def put(self, request, orderId):
+        print(
+            f"PUT request to update order with ID {orderId}"
+        )  # Debug: log the method call
+        self._check_role(request, ["admin", "user"])  # Both admin and user can use PUT
+        return self._forward_request(
+            method="PUT",
+            data=request.data,
+            url=f"{settings.SERVICE_URLS['order_update']}/{orderId}/",
+        )
+
+    def delete(self, request, orderId):
+        print(
+            f"DELETE request to delete order with ID {orderId}"
+        )  # Debug: log the method call
+        self._check_role(
+            request, ["admin", "user"]
+        )  # Both admin and user can use DELETE
+        return self._forward_request(
+            method="DELETE",
+            data=request.data,
+            url=f"{settings.SERVICE_URLS['order_delete']}/{orderId}/",
+        )
+
+    def _forward_request(self, method, data, url, headers=None):
+        try:
+            print(
+                f"Forwarding {method} request to {url} with data: {data}"
+            )  # Debug: log forwarding details
+            response = requests.request(method, url, json=data, headers=headers)
+            if response.headers.get("Content-Type") == "application/json":
+                response_data = response.json()
+                print(
+                    f"Response from service: {response_data}"
+                )  # Debug: log the response from service
+                return Response(response_data, status=response.status_code)
+            else:
+                print(
+                    f"Non-JSON response from service: {response.text}"
+                )  # Log non-JSON response
+                return Response(response.text, status=response.status_code)
+        except requests.exceptions.RequestException as e:
+            print(f"Error in forwarding request: {str(e)}")  # Debug: log the exception
+            return Response({"error": f"Service request failed: {str(e)}"}, status=500)
+        except ValueError:
+            print(f"Error: Invalid JSON in response. Raw response: {response.text}")
+            return Response({"error": "Invalid JSON in response"}, status=500)
