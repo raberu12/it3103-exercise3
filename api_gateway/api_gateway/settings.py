@@ -19,11 +19,14 @@ SECRET_KEY = "test-secret"
 SERVICE_URLS = {
     "login": "http://localhost:3002/login/",
     "register": "http://localhost:3002/register/",
-    "order": "http://localhost:3003/orders/",
-    "product_create": "http://localhost:3001/products/",
-    "product_update": "http://localhost:3001/products/",
-    "product_delete": "http://localhost:3001/products/",
-    "product_get": "http://localhost:3001/products/",
+    "order_get": "http://localhost:3003/orders",
+    "order_create": "http://localhost:3003/orders/",
+    "order_update": "http://localhost:3003/orders/",
+    "order_delete": "http://localhost:3003/orders/",
+    "product_create": "http://localhost:3001/products",
+    "product_update": "http://localhost:3001/products",
+    "product_delete": "http://localhost:3001/products",
+    "product_get": "http://localhost:3001/products",
 }
 
 DEBUG = True
