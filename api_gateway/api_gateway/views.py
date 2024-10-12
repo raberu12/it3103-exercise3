@@ -1,5 +1,4 @@
 import json
-from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
 from django.core.cache import cache
 from django.http import JsonResponse
@@ -9,40 +8,11 @@ from django.views.decorators.csrf import csrf_exempt
 from functools import wraps
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.authentication import TokenAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.authentication import JWTAuthentication
 import requests
-from django.core.exceptions import PermissionDenied
-from rest_framework_simplejwt.tokens import RefreshToken
-
-
-def token_required(f):
-    @wraps(f)
-    def decorated(self, request, *args, **kwargs):
-        try:
-            auth = TokenAuthentication()
-            user, token = auth.authenticate(request)
-            request.user = user
-        except AuthenticationFailed as e:
-            return JsonResponse({"error": str(e)}, status=401)
-        return f(self, request, *args, **kwargs)
-
-    return decorated
-
-
-def role_required(allowed_roles):
-    def decorator(f):
-        @wraps(f)
-        def decorated(self, request, *args, **kwargs):
-            user_role = request.user.get("role") if hasattr(request, "user") else None
-            if user_role not in allowed_roles:
-                return JsonResponse({"error": "Permission denied"}, status=403)
-            return f(self, request, *args, **kwargs)
-
-        return decorated
-
-    return decorator
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
+from rest_framework import status
+from rest_framework.permissions import AllowAny
 
 
 def throttle(limit=5, period=60):
@@ -62,6 +32,20 @@ def throttle(limit=5, period=60):
         return _wrapped_view
 
     return decorator
+
+
+def decode_access_token(token):
+    try:
+        # Decode the token
+        decoded_token = AccessToken(token)
+        print(decoded_token)
+        return {
+            "username": decoded_token.get("username"),
+            "role": decoded_token.get("role"),
+            "id": decoded_token.get("id"),
+        }
+    except Exception as e:
+        raise AuthenticationFailed(f"Token is invalid: {str(e)}")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -104,10 +88,23 @@ class RegisterView(View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class LoginView(View):
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def create_tokens_for_user(self, user_data):
+        refresh = RefreshToken()
+        refresh["username"] = user_data["username"]
+        refresh["role"] = user_data["role"]
+        refresh["id"] = user_data["id"]
+        return {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }
+
     def post(self, request):
         try:
-            data = json.loads(request.body)
+            data = request.data
             username = data.get("username")
             password = data.get("password")
 
@@ -119,71 +116,114 @@ class LoginView(View):
             if response.status_code == 200:
                 user_data = response.json()
 
-                # Create JWT payload manually (without for_user)
-                refresh = RefreshToken()
-                refresh["username"] = user_data["username"]
-                refresh["role"] = user_data["role"]
-                refresh["id"] = user_data["id"]
+                # Create tokens using the custom method
+                tokens = self.create_tokens_for_user(user_data)
 
-                return JsonResponse(
+                return Response(
                     {
-                        "access": str(refresh.access_token),
-                        "refresh": str(refresh),
-                        "user": user_data,
+                        "access": tokens["access"],
+                        "refresh": tokens["refresh"],
                     },
-                    status=200,
+                    status=status.HTTP_200_OK,
                 )
             else:
-                return JsonResponse(response.json(), status=response.status_code)
+                return Response(response.json(), status=response.status_code)
 
+        except KeyError as e:
+            return Response(
+                {"error": f"Missing key in user data: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class ProductView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    authentication_classes = []
+    permission_classes = [AllowAny]
 
     def _check_role(self, request, allowed_roles):
-        if not request.user.is_authenticated:
+        print(request.headers.get("Authorization"))
+        token = request.headers.get("Authorization")
+        if not token:
+            print("User is not authenticated")
             raise AuthenticationFailed("User is not authenticated")
-
-        user_role = getattr(request.user, "role", None)
-        if user_role not in allowed_roles:
-            raise PermissionDenied("Permission denied")
+        payload = decode_access_token(token.split(" ")[1])
+        if payload["role"] not in allowed_roles:
+            print("User is not authorized")
+            raise AuthenticationFailed("User is not authorized")
 
     def post(self, request):
+        print("POST request to create product")  # Debug: log the method call
         self._check_role(request, ["admin"])
         product_data = request.data
+        print(f"Product data: {product_data}")  # Debug: log the product data being sent
         return self._forward_request(
-            product_data, settings.SERVICE_URLS["product_create"]
+            method="POST",
+            data=product_data,
+            url=settings.SERVICE_URLS["product_create"],
         )
 
     def put(self, request, productId):
+        print(
+            f"PUT request to update product with ID {productId}"
+        )  # Debug: log the method call
         self._check_role(request, ["admin"])
         return self._forward_request(
-            request.data,
-            f"{settings.SERVICE_URLS['product_update']}/{productId}/",
+            method="PUT",
+            data=request.data,
+            url=f"{settings.SERVICE_URLS['product_update']}/{productId}/",
         )
 
     def delete(self, request, productId):
+        print(
+            f"DELETE request to delete product with ID {productId}"
+        )  # Debug: log the method call
         self._check_role(request, ["admin"])
         return self._forward_request(
-            request.data,
-            f"{settings.SERVICE_URLS['product_delete']}/{productId}/",
+            method="DELETE",
+            data=request.data,
+            url=f"{settings.SERVICE_URLS['product_delete']}/{productId}/",
         )
 
     def get(self, request, productId):
-        self._check_role(request, ["admin", "user"])
+        print(
+            f"GET request for product with ID {productId}"
+        )  # Debug: log the method call
         return self._forward_request(
-            request.data,
-            f"{settings.SERVICE_URLS['product_get']}/{productId}/",
+            method="GET",
+            data=request.data,
+            url=f"{settings.SERVICE_URLS['product_get']}/{productId}/",
         )
 
-    def _forward_request(self, product_data, url, headers=None):
+
+    def _forward_request(self, method, data, url, headers=None):
         try:
-            response = requests.post(url, json=product_data, headers=headers)
-            return Response(response.json(), status=response.status_code)
+            print(
+                f"Forwarding {method} request to {url} with data: {data}"
+            )  # Debug: log forwarding details
+            response = requests.request(method, url, json=data, headers=headers)
+
+            # Check if response contains JSON content
+            if response.headers.get("Content-Type") == "application/json":
+                response_data = response.json()
+                print(
+                    f"Response from service: {response_data}"
+                )  # Debug: log the response from service
+                return Response(response_data, status=response.status_code)
+            else:
+                print(
+                    f"Non-JSON response from service: {response.text}"
+                )  # Log non-JSON response
+                return Response(response.text, status=response.status_code)
+
         except requests.exceptions.RequestException as e:
+            print(f"Error in forwarding request: {str(e)}")  # Debug: log the exception
             return Response({"error": f"Service request failed: {str(e)}"}, status=500)
+        except ValueError:
+            # Handle the case where .json() fails due to invalid JSON
+            print(f"Error: Invalid JSON in response. Raw response: {response.text}")
+            return Response({"error": "Invalid JSON in response"}, status=500)
