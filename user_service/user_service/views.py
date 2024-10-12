@@ -1,13 +1,67 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from django.contrib.auth import authenticate
+from django.http import JsonResponse
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+import json
 
 users = [
-    {"id": 1, "username": "Achille", "email": "achille@gmail.com", "password": "achille"},
-    {"id": 2, "username": "Carlo", "email": "carlo@gmail.com", "password": "carloboy"},
-    {"id": 3, "username": "Julz", "email": "julz@gmail.com", "password": "julzstephen"},
-    {"id": 4, "username": "Matt", "email": "matt@gmail.com", "password": "matt0987654321"},
+    {"id": 1, "username": "Achille", "password": "achille", "role": "user"},
+    {"id": 2, "username": "Carlo", "password": "carloboy", "role": "user"},
+    {"id": 3, "username": "Julz", "password": "julzstephen", "role": "admin"},
+    {"id": 4, "username": "Matt", "password": "matt0987654321", "role": "admin"},
 ]
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LoginView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            username = data.get("username")
+            password = data.get("password")
+            for user in users:
+                if user['username'] == username and user['password'] == password:
+                    return JsonResponse({"id": user['id'],
+                                        "username": user['username'],
+                                        "role": user['role']}, status=200)
+            return JsonResponse({"error": "Invalid credentials"}, status=401)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RegisterView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            username = data.get("username")
+            password = data.get("password")
+            role = data.get("role", "user")  # Default role is 'user'
+
+            # Check if the username already exists
+            if any(user["username"] == username for user in users):
+                return JsonResponse({"error": "Username already exists."}, status=400)
+
+            # Create a new user
+            new_user = {
+                "id": len(users) + 1,
+                "username": username,
+                "password": password,
+                'role': role,
+            }
+
+            users.append(new_user)  # Add the new user to the list
+
+            return JsonResponse({k: v for k, v in new_user.items() if k != 'password'}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
 def user_view(request, userId=None):
@@ -25,11 +79,11 @@ def user_view(request, userId=None):
         new_user = {
             "id": len(users) + 1,
             "username": user_data.get("username"),
-            "email": user_data.get("email"),
-            "password": user_data.get("password")
+            "password": user_data.get("password"),
+            'role': user_data.get('role', 'user')
         }
         if any(value is None for value in new_user.values()):
-            return Response({"error": "Username, email, and password must have values."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Username and password must have values."}, status=status.HTTP_400_BAD_REQUEST)
         users.append(new_user)
         return Response({k: v for k, v in new_user.items() if k != 'password'}, status=status.HTTP_201_CREATED)
 
@@ -41,10 +95,10 @@ def user_view(request, userId=None):
             return Response({"error": "user not found."}, status=status.HTTP_404_NOT_FOUND)
         user_data = request.data
         user["username"] = user_data.get("username", user["username"])
-        user["email"] = user_data.get("email", user["email"])
         user["password"] = user_data.get("password", user["password"])
+        user["role"] = user_data.get("role", user["role"])
         if any(value is None for value in user.values()):
-            return Response({"error": "Username, email, and password must have values."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Username and password must have values."}, status=status.HTTP_400_BAD_REQUEST)
         return Response({k: v for k, v in user.items() if k != 'password'}, status=status.HTTP_200_OK)
 
     elif request.method == "DELETE":

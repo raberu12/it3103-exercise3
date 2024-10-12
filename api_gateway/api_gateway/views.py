@@ -1,58 +1,18 @@
 import json
-from datetime import datetime, timedelta
-
-import jwt
 from django.conf import settings
-from django.contrib.auth import authenticate
-from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from functools import wraps
-from jwt.exceptions import PyJWTError
-
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.exceptions import AuthenticationFailed
 import requests
-
-
-
-def token_required(f):
-    @wraps(f)
-    def decorated(self, request, *args, **kwargs):
-        token = request.headers.get("Authorization")
-        if not token:
-            return JsonResponse({"error": "Token is missing"}, status=401)
-        try:
-            data = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-            request.user = data
-        except PyJWTError as e:
-            return JsonResponse({"error": f"Token is invalid: {str(e)}"}, status=401)
-        except Exception as e:
-            return JsonResponse(
-                {"error": f"An unexpected error occurred: {str(e)}"}, status=500
-            )
-        return f(self, request, *args, **kwargs)
-
-    return decorated
-
-
-def role_required(allowed_roles):
-    def decorator(f):
-        @wraps(f)
-        def decorated(self, request, *args, **kwargs):
-            if not hasattr(request, "user"):
-                return JsonResponse({"error": "User not authenticated"}, status=401)
-
-            user_role = request.user.get("role")
-            if not user_role or user_role not in allowed_roles:
-                return JsonResponse({"error": "Permission denied"}, status=403)
-
-            return f(self, request, *args, **kwargs)
-
-        return decorated
-
-    return decorator
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
+from rest_framework import status
+from rest_framework.permissions import AllowAny
 
 
 def throttle(limit=5, period=60):
@@ -73,7 +33,22 @@ def throttle(limit=5, period=60):
 
     return decorator
 
-@method_decorator(csrf_exempt, name='dispatch')
+
+def decode_access_token(token):
+    try:
+        # Decode the token
+        decoded_token = AccessToken(token)
+        print(decoded_token)
+        return {
+            "username": decoded_token.get("username"),
+            "role": decoded_token.get("role"),
+            "id": decoded_token.get("id"),
+        }
+    except Exception as e:
+        raise AuthenticationFailed(f"Token is invalid: {str(e)}")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
 class RegisterView(View):
     def post(self, request):
         try:
@@ -82,81 +57,173 @@ class RegisterView(View):
             password = data.get("password")
             role = data.get("role", "user")  # Default role is 'user'
 
-            if User.objects.filter(username=username).exists():
-                return JsonResponse({"error": "Username already exists"}, status=400)
+            # Check if the username already exists by calling the user service
+            user_service_url = settings.SERVICE_URLS["register"]
+            check_response = requests.get(
+                user_service_url, params={"username": username}
+            )
 
-            user = User.objects.create_user(username=username, password=password)
-            user.profile.role = role  # Assuming you have a profile model with a role field
-            user.profile.save()  # Save the user's profile
+            if check_response.status_code == 200:
+                return JsonResponse({"error": "Username already exists."}, status=400)
 
-            return JsonResponse({"message": "User registered successfully"}, status=201)
+            # Forward registration request to the user service
+            registration_response = requests.post(
+                user_service_url,
+                json={"username": username, "password": password, "role": role},
+            )
 
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+            # Return response from user service
+            return JsonResponse(
+                registration_response.json(), status=registration_response.status_code
+            )
 
-
-@method_decorator(csrf_exempt, name='dispatch')
-class LoginView(View):
-    def post(self, request):
-        try:
-            data = json.loads(request.body)
-            username = data.get("username")
-            password = data.get("password")
-
-            user = authenticate(request, username=username, password=password)
-            if user is not None:
-                # Generate JWT token
-                payload = {
-                    'id': user.id,
-                    'username': user.username,
-                    'role': user.profile.role,  # Assuming you have a profile model with a role field
-                    'exp': datetime.utcnow() + timedelta(hours=1)  # Token expiration time
-                }
-                token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
-                return JsonResponse({"token": token}, status=200)
-            else:
-                return JsonResponse({"error": "Invalid credentials"}, status=401)
-
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-
-class ForwardView(View):
-    @token_required
-    @role_required(["admin"])
-    def post(self, request, service):
-        return self._forward_request(request, service, "post")
-
-    @token_required
-    @role_required(["user", "admin"])
-    @throttle(limit=5, period=60)
-    def get(self, request, service):
-        return self._forward_request(request, service, "get")
-
-    def _forward_request(self, request, service, method):
-        service_urls = settings.SERVICE_URLS
-        url = service_urls.get(service)
-        if not url:
-            return JsonResponse({"error": "Service not found"}, status=404)
-
-        headers = {"Authorization": request.headers.get("Authorization")}
-        try:
-            if method == "post":
-                response = requests.post(
-                    url, json=json.loads(request.body), headers=headers
-                )
-            else:
-                response = requests.get(url, headers=headers)
-            response.raise_for_status()
-            return JsonResponse(response.json(), status=response.status_code)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
         except requests.exceptions.RequestException as e:
             return JsonResponse(
                 {"error": f"Service request failed: {str(e)}"}, status=500
             )
-        except ValueError as e:
-            return JsonResponse(
-                {"error": f"Invalid JSON response from service: {str(e)}"}, status=500
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def create_tokens_for_user(self, user_data):
+        refresh = RefreshToken()
+        refresh["username"] = user_data["username"]
+        refresh["role"] = user_data["role"]
+        refresh["id"] = user_data["id"]
+        return {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }
+
+    def post(self, request):
+        try:
+            data = request.data
+            username = data.get("username")
+            password = data.get("password")
+
+            user_service_url = settings.SERVICE_URLS["login"]
+            response = requests.post(
+                user_service_url, json={"username": username, "password": password}
+            )
+
+            if response.status_code == 200:
+                user_data = response.json()
+
+                # Create tokens using the custom method
+                tokens = self.create_tokens_for_user(user_data)
+
+                return Response(
+                    {
+                        "access": tokens["access"],
+                        "refresh": tokens["refresh"],
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                return Response(response.json(), status=response.status_code)
+
+        except KeyError as e:
+            return Response(
+                {"error": f"Missing key in user data: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         except Exception as e:
-            return JsonResponse(
-                {"error": f"An unexpected error occurred: {str(e)}"}, status=500
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ProductView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def _check_role(self, request, allowed_roles):
+        print(request.headers.get("Authorization"))
+        token = request.headers.get("Authorization")
+        if not token:
+            print("User is not authenticated")
+            raise AuthenticationFailed("User is not authenticated")
+        payload = decode_access_token(token.split(" ")[1])
+        if payload["role"] not in allowed_roles:
+            print("User is not authorized")
+            raise AuthenticationFailed("User is not authorized")
+
+    def post(self, request):
+        print("POST request to create product")  # Debug: log the method call
+        self._check_role(request, ["admin"])
+        product_data = request.data
+        print(f"Product data: {product_data}")  # Debug: log the product data being sent
+        return self._forward_request(
+            method="POST",
+            data=product_data,
+            url=settings.SERVICE_URLS["product_create"],
+        )
+
+    def put(self, request, productId):
+        print(
+            f"PUT request to update product with ID {productId}"
+        )  # Debug: log the method call
+        self._check_role(request, ["admin"])
+        return self._forward_request(
+            method="PUT",
+            data=request.data,
+            url=f"{settings.SERVICE_URLS['product_update']}/{productId}/",
+        )
+
+    def delete(self, request, productId):
+        print(
+            f"DELETE request to delete product with ID {productId}"
+        )  # Debug: log the method call
+        self._check_role(request, ["admin"])
+        return self._forward_request(
+            method="DELETE",
+            data=request.data,
+            url=f"{settings.SERVICE_URLS['product_delete']}/{productId}/",
+        )
+
+    def get(self, request, productId):
+        print(
+            f"GET request for product with ID {productId}"
+        )  # Debug: log the method call
+        return self._forward_request(
+            method="GET",
+            data=request.data,
+            url=f"{settings.SERVICE_URLS['product_get']}/{productId}/",
+        )
+
+
+    def _forward_request(self, method, data, url, headers=None):
+        try:
+            print(
+                f"Forwarding {method} request to {url} with data: {data}"
+            )  # Debug: log forwarding details
+            response = requests.request(method, url, json=data, headers=headers)
+
+            # Check if response contains JSON content
+            if response.headers.get("Content-Type") == "application/json":
+                response_data = response.json()
+                print(
+                    f"Response from service: {response_data}"
+                )  # Debug: log the response from service
+                return Response(response_data, status=response.status_code)
+            else:
+                print(
+                    f"Non-JSON response from service: {response.text}"
+                )  # Log non-JSON response
+                return Response(response.text, status=response.status_code)
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error in forwarding request: {str(e)}")  # Debug: log the exception
+            return Response({"error": f"Service request failed: {str(e)}"}, status=500)
+        except ValueError:
+            # Handle the case where .json() fails due to invalid JSON
+            print(f"Error: Invalid JSON in response. Raw response: {response.text}")
+            return Response({"error": "Invalid JSON in response"}, status=500)

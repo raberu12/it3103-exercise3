@@ -20,11 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-<<<<<<< HEAD
-SECRET_KEY = 'django-insecure-5agmx%=6&0-wtb*al2z0$6#m39ax(#+&+e8ur_jefkt8f8uz)u'
-=======
 SECRET_KEY = "django-insecure-5agmx%=6&0-wtb*al2z0$6#m39ax(#+&+e8ur_jefkt8f8uz)u"
->>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -35,7 +31,6 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-<<<<<<< HEAD
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -68,25 +63,12 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-=======
-    "django.contrib.admin",
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    "rest_framework",
+            ],
+        },
+    },
 ]
 
-MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-]
+
 
 ROOT_URLCONF = "product_service.urls"
 
@@ -101,32 +83,20 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
->>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
             ],
         },
     },
 ]
 
-<<<<<<< HEAD
-WSGI_APPLICATION = 'product_service.wsgi.application'
-=======
 WSGI_APPLICATION = "product_service.wsgi.application"
->>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
-
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-<<<<<<< HEAD
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
-=======
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
->>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
     }
 }
 
@@ -136,7 +106,6 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-<<<<<<< HEAD
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
     {
@@ -147,18 +116,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-=======
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
->>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
     },
 ]
 
@@ -166,15 +123,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-<<<<<<< HEAD
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
-=======
-LANGUAGE_CODE = "en-us"
-
-TIME_ZONE = "UTC"
->>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
 
 USE_I18N = True
 
@@ -184,17 +135,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-<<<<<<< HEAD
-STATIC_URL = 'static/'
-=======
 STATIC_URL = "static/"
->>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
-<<<<<<< HEAD
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-=======
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
->>>>>>> 18dbb88a9362a033dc4c676fef71847f9aab5159
