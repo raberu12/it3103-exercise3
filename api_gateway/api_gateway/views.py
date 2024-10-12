@@ -56,23 +56,17 @@ class RegisterView(View):
             username = data.get("username")
             password = data.get("password")
             role = data.get("role", "user")  # Default role is 'user'
-
-            # Check if the username already exists by calling the user service
             user_service_url = settings.SERVICE_URLS["register"]
             check_response = requests.get(
                 user_service_url, params={"username": username}
             )
-
             if check_response.status_code == 200:
                 return JsonResponse({"error": "Username already exists."}, status=400)
-
-            # Forward registration request to the user service
             registration_response = requests.post(
                 user_service_url,
                 json={"username": username, "password": password, "role": role},
             )
 
-            # Return response from user service
             return JsonResponse(
                 registration_response.json(), status=registration_response.status_code
             )
@@ -157,10 +151,10 @@ class ProductView(APIView):
             raise AuthenticationFailed("User is not authorized")
 
     def post(self, request):
-        print("POST request to create product")  # Debug: log the method call
+        print("POST request to create product")
         self._check_role(request, ["admin"])
         product_data = request.data
-        print(f"Product data: {product_data}")  # Debug: log the product data being sent
+        print(f"Product data: {product_data}")
         return self._forward_request(
             method="POST",
             data=product_data,
@@ -199,31 +193,21 @@ class ProductView(APIView):
             url=f"{settings.SERVICE_URLS['product_get']}/{productId}/",
         )
 
-
     def _forward_request(self, method, data, url, headers=None):
         try:
-            print(
-                f"Forwarding {method} request to {url} with data: {data}"
-            )  # Debug: log forwarding details
+            print(f"Forwarding {method} request to {url} with data: {data}")
             response = requests.request(method, url, json=data, headers=headers)
-
-            # Check if response contains JSON content
             if response.headers.get("Content-Type") == "application/json":
                 response_data = response.json()
-                print(
-                    f"Response from service: {response_data}"
-                )  # Debug: log the response from service
+                print(f"Response from service: {response_data}")
                 return Response(response_data, status=response.status_code)
             else:
-                print(
-                    f"Non-JSON response from service: {response.text}"
-                )  # Log non-JSON response
+                print(f"Non-JSON response from service: {response.text}")
                 return Response(response.text, status=response.status_code)
 
         except requests.exceptions.RequestException as e:
-            print(f"Error in forwarding request: {str(e)}")  # Debug: log the exception
+            print(f"Error in forwarding request: {str(e)}")
             return Response({"error": f"Service request failed: {str(e)}"}, status=500)
         except ValueError:
-            # Handle the case where .json() fails due to invalid JSON
             print(f"Error: Invalid JSON in response. Raw response: {response.text}")
             return Response({"error": "Invalid JSON in response"}, status=500)
